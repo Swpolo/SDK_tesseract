@@ -75,6 +75,9 @@ public class MainActivity extends AppCompatActivity {
                 {
                     Log.i(TAG, "OpenCV loaded successfully");
                     initMat();
+
+                    updateGrid();
+
                 } break;
                 default:
                 {
@@ -140,7 +143,6 @@ public class MainActivity extends AppCompatActivity {
         originalSdk = BitmapFactory.decodeFile(path);
         editedSdk = BitmapFactory.decodeFile(path);
         iv.setImageBitmap(originalSdk);
-
     }
 
     private int readExternalStoragePermission(){
@@ -232,7 +234,7 @@ public class MainActivity extends AppCompatActivity {
 
     public void read(View view){
         if(squareRead == null) {
-            squareRead = Bitmap.createBitmap(square_gray.width(), square_gray.height(), Bitmap.Config.ARGB_8888);
+            squareRead = Bitmap.createBitmap(square_gray.width(), square_gray.height(), Bitmap.Config.ALPHA_8);
         }
         Utils.matToBitmap(square_gray, squareRead);
 
@@ -276,7 +278,7 @@ public class MainActivity extends AppCompatActivity {
         int squareSize;
         squareSize = (int)(draw.size().width / 9);
 
-        float deadSpaceRatio = 0.1f;
+        float deadSpaceRatio = 0.15f;
         int deadSpaceSize = (int)(squareSize * deadSpaceRatio);
 
         upperLeft = new Point(squareSize * current_col + deadSpaceSize,
@@ -301,15 +303,20 @@ public class MainActivity extends AppCompatActivity {
         square_color = draw.submat(roi);
         Imgproc.cvtColor(square_color, square_gray, Imgproc.COLOR_BGR2GRAY);
 
-        //Imgproc.GaussianBlur(square_gray, square_gray, new Size(3,3), 3);
-        Mat m_erode     = Imgproc.getStructuringElement(Imgproc.MORPH_ERODE, new Size(3,3));
-        Mat m_dilate    = Imgproc.getStructuringElement(Imgproc.MORPH_DILATE, new Size(3,3));
-        Imgproc.erode(square_gray, square_gray, m_erode);
-        Imgproc.dilate(square_gray, square_gray, m_dilate);
-        Imgproc.dilate(square_gray, square_gray, m_dilate);
-        Imgproc.erode(square_gray, square_gray, m_erode);
-        Imgproc.adaptiveThreshold(square_gray, square_gray, 255, Imgproc.ADAPTIVE_THRESH_GAUSSIAN_C, Imgproc.THRESH_BINARY, 9, 7);
-        Core.bitwise_not(square_gray, square_gray);
+        Imgproc.GaussianBlur(square_gray, square_gray, new Size(3,3), 3);
+//        Mat m_er
+// ode     = Imgproc.getStructuringElement(Imgproc.MORPH_ERODE, new Size(3,3));
+//        Mat m_dilate    = Imgproc.getStructuringElement(Imgproc.MORPH_DILATE, new Size(3,3));
+//        Imgproc.erode(square_gray, square_gray, m_erode);
+//        Imgproc.dilate(square_gray, square_gray, m_dilate);
+//        Imgproc.dilate(square_gray, square_gray, m_dilate);
+//        Imgproc.erode(square_gray, square_gray, m_erode);
+        int imgSize = square_gray.width();
+        if((imgSize & 0b1) != 1){
+            imgSize = imgSize - 1;
+        }
+        Imgproc.adaptiveThreshold(square_gray, square_gray, 255, Imgproc.ADAPTIVE_THRESH_MEAN_C, Imgproc.THRESH_BINARY, imgSize/2, imgSize/3);
+        //Core.bitwise_not(square_gray, square_gray);
 
         Utils.matToBitmap(square_gray, squareRead);
         iv_square.setImageBitmap(squareRead);
@@ -317,6 +324,7 @@ public class MainActivity extends AppCompatActivity {
         Imgproc.rectangle(draw, upperLeft, lowerRight, new Scalar(255,0,0), 4);
         Utils.matToBitmap(draw, editedSdk);
         iv.setImageBitmap(editedSdk);
+        read(iv);
     }
 
 }
