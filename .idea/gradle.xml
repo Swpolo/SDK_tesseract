@@ -11,6 +11,7 @@
             <option value="$PROJECT_DIR$/app" />
             <option value="$PROJECT_DIR$/libraries" />
             <option value="$PROJECT_DIR$/libraries/tess-two" />
+            <option value="$PROJECT_DIR$/openCVLibrary320" />
           </set>
         </option>
         <option name="resolveModulePerSourceSet" value="false" />

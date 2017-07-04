@@ -1,3 +1,8 @@
 <resources>
     <string name="app_name">SDK_tesseract</string>
+    <string name="read">Read</string>
+    <string name="up">up</string>
+    <string name="down">down</string>
+    <string name="left">left</string>
+    <string name="right">right</string>
 </resources>
