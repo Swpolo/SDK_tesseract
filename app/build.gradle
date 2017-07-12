@@ -12,8 +12,15 @@ android {
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
         externalNativeBuild {
             cmake {
-                cppFlags "-frtti -fexceptions"
+                cppFlags "-std=c++11 -frtti -fexceptions"
+
+                abiFilters 'x86', 'x86_64', 'armeabi', 'armeabi-v7a', 'arm64-v8a', 'mips', 'mips64'
             }
+        }
+    }
+    sourceSets {
+        main {
+            jniLibs.srcDirs = ['D:\\Paul\\Documents\\Programming\\Android\\SDK_tesseract\\app\\src\\main\\jniLibs']
         }
     }
     buildTypes {

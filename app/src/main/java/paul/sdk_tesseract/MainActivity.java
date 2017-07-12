@@ -7,6 +7,8 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.media.Image;
 import android.os.Environment;
+import android.provider.ContactsContract;
+import android.provider.Settings;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
@@ -25,10 +27,14 @@ import org.opencv.android.Utils;
 import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
+import org.opencv.core.MatOfPoint;
+import org.opencv.core.MatOfPoint2f;
 import org.opencv.core.Point;
+import org.opencv.core.Range;
 import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
 import org.opencv.core.Size;
+import org.opencv.features2d.FeatureDetector;
 import org.opencv.imgproc.Imgproc;
 
 import java.io.File;
@@ -38,6 +44,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.List;
 
 // référence tesseract : http://imperialsoup.com/2016/04/29/simple-ocr-android-app-using-tesseract-tutorial/
 
@@ -76,8 +84,6 @@ public class MainActivity extends AppCompatActivity {
                     Log.i(TAG, "OpenCV loaded successfully");
                     initMat();
 
-                    updateGrid();
-
                 } break;
                 default:
                 {
@@ -93,7 +99,6 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         tv = (TextView)findViewById(R.id.tv_result);
         iv = (ImageView)findViewById(R.id.iv_grid);
-        iv_square = (ImageView)findViewById(R.id.iv_square);
 
         initOCR();
         initImg();
@@ -232,99 +237,47 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    public void read(View view){
-        if(squareRead == null) {
-            squareRead = Bitmap.createBitmap(square_gray.width(), square_gray.height(), Bitmap.Config.ALPHA_8);
-        }
-        Utils.matToBitmap(square_gray, squareRead);
 
-        mTess.setImage(squareRead);
-        String recognizedText = mTess.getUTF8Text();
-        tv.setText(recognizedText);
-    }
-
-    public void up(View view){
-        if(current_row != 0){
-            current_row--;
-            updateGrid();
-        }
-    }
-
-    public void down(View view){
-        if(current_row != 8){
-            current_row++;
-            updateGrid();
-        }
-    }
-
-    public void left(View view){
-        if(current_col != 0){
-            current_col--;
-            updateGrid();
-        }
-    }
-
-    public void right(View view){
-        if(current_col != 8){
-            current_col++;
-            updateGrid();
-        }
-    }
-
-    Point   upperLeft;
-    Point   lowerRight;
-    Rect    roi;
-    private void updateGrid(){
-        int squareSize;
-        squareSize = (int)(draw.size().width / 9);
-
-        float deadSpaceRatio = 0.15f;
-        int deadSpaceSize = (int)(squareSize * deadSpaceRatio);
-
-        upperLeft = new Point(squareSize * current_col + deadSpaceSize,
-                squareSize * current_row + deadSpaceSize);
-        lowerRight = new Point(squareSize * (current_col + 1) - deadSpaceSize,
-                squareSize * (current_row + 1) - deadSpaceSize);
-        roi = new Rect(upperLeft, lowerRight);
-
-        if(square_color == null){
-            square_color = new Mat(roi.size(), CvType.CV_8UC4);
-        }
-
-        if(square_gray == null){
-            square_gray = new Mat(roi.size(), CvType.CV_8UC1);
-        }
-
-        if(squareRead == null){
-            squareRead = Bitmap.createBitmap(square_color.width(), square_color.height(), Bitmap.Config.ARGB_8888);
-        }
-
+    public void detect(View v) {
         Utils.bitmapToMat(originalSdk, draw);
-        square_color = draw.submat(roi);
-        Imgproc.cvtColor(square_color, square_gray, Imgproc.COLOR_BGR2GRAY);
-
-        Imgproc.GaussianBlur(square_gray, square_gray, new Size(3,3), 3);
-//        Mat m_er
-// ode     = Imgproc.getStructuringElement(Imgproc.MORPH_ERODE, new Size(3,3));
-//        Mat m_dilate    = Imgproc.getStructuringElement(Imgproc.MORPH_DILATE, new Size(3,3));
-//        Imgproc.erode(square_gray, square_gray, m_erode);
-//        Imgproc.dilate(square_gray, square_gray, m_dilate);
-//        Imgproc.dilate(square_gray, square_gray, m_dilate);
-//        Imgproc.erode(square_gray, square_gray, m_erode);
-        int imgSize = square_gray.width();
-        if((imgSize & 0b1) != 1){
-            imgSize = imgSize - 1;
-        }
-        Imgproc.adaptiveThreshold(square_gray, square_gray, 255, Imgproc.ADAPTIVE_THRESH_MEAN_C, Imgproc.THRESH_BINARY, imgSize/2, imgSize/3);
-        //Core.bitwise_not(square_gray, square_gray);
-
-        Utils.matToBitmap(square_gray, squareRead);
-        iv_square.setImageBitmap(squareRead);
-
-        Imgproc.rectangle(draw, upperLeft, lowerRight, new Scalar(255,0,0), 4);
+        detectLetter(draw.getNativeObjAddr());
         Utils.matToBitmap(draw, editedSdk);
         iv.setImageBitmap(editedSdk);
-        read(iv);
+        readGrid(draw);
     }
 
+    void readGrid(Mat input){
+        String result = "";
+        Size size   = new Size(input.size().width/9, input.size().height/9);
+        Mat inputbw = new Mat(input.size(), CvType.CV_8UC1);
+        Mat submat  = new Mat(size, CvType.CV_8UC1);
+        Bitmap bmp ;
+
+        Imgproc.cvtColor(input, inputbw, Imgproc.COLOR_BGR2GRAY);
+        bmp = Bitmap.createBitmap((int)size.width, (int)size.height, Bitmap.Config.ARGB_8888);
+
+
+
+        for(int i = 0; i < 9; i++){
+            if (i != 0){
+                result += System.getProperty("line.separator");
+            }
+            for(int j = 0; j < 9; j++){
+                submat = inputbw.submat((int)size.width * i, (int)size.width * (i + 1), (int)size.height * j, (int)size.height * (j + 1));
+                if(Core.countNonZero( submat ) < 1){
+                    result += "0";
+                }
+                else{
+                    Utils.matToBitmap(submat, bmp);
+                    mTess.setImage(bmp);
+                    result += mTess.getUTF8Text();
+                }
+            }
+        }
+
+        result = result.replaceAll("[^\\d\\r\\n]", "");
+        tv.setText(result);
+    }
+
+    public native void detectLetter(long drawAddr);
 }
